@@ -37,9 +37,25 @@ class FirebaseService:
         """Get a document from Firestore"""
         return get_document(collection, doc_id)
     
-    def create_document(self, collection: str, data: Dict[str, Any]) -> Optional[str]:
-        """Create a document in Firestore"""
+    def create_document(self, collection: str, data: Dict[str, Any], document_id: Optional[str] = None) -> Optional[str]:
+        """Create a document in Firestore with optional document ID"""
+        if document_id:
+            return save_document(collection, data, document_id)
         return add_document(collection, data)
+    
+    def save_document(self, collection: str, data: Dict[str, Any], document_id: str) -> Optional[str]:
+        """Save a document to Firestore with a specific ID"""
+        if not self.is_initialized():
+            logger.error("Firebase not initialized")
+            return None
+            
+        try:
+            doc_ref = db.collection(collection).document(document_id)
+            doc_ref.set(data)
+            return document_id
+        except Exception as e:
+            logger.error(f"Error saving document to Firestore: {e}")
+            return None
     
     def update_document(self, collection: str, doc_id: str, data: Dict[str, Any]) -> bool:
         """Update a document in Firestore"""
@@ -52,6 +68,19 @@ class FirebaseService:
     def query_documents(self, collection: str, field: str, operator: str, value: Any) -> Optional[list]:
         """Query documents from Firestore"""
         return query_documents(collection, field, operator, value)
+        
+    def get_available_collections(self) -> list:
+        """Get a list of available collections"""
+        if not self.is_initialized():
+            logger.warning("Firestore not initialized")
+            return []
+            
+        try:
+            collections = db.collections()
+            return [collection.id for collection in collections]
+        except Exception as e:
+            logger.error(f"Error getting collections: {e}")
+            return []
     
     def upload_file(self, file_path: str, destination_path: str) -> Optional[str]:
         """Upload a file to Firebase Storage"""
