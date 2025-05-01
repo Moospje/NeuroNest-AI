@@ -3,7 +3,7 @@ import logging
 import uuid
 import shutil
 import mimetypes
-from typing import Dict, List, Any, Optional, BinaryIO
+from typing import Dict, List, Any, Optional, BinaryIO, Union
 from datetime import datetime
 import aiofiles
 from fastapi import UploadFile
@@ -12,6 +12,7 @@ from PIL import Image
 import io
 from app.core.config import settings
 from app.models.file import FileInfo, FileAnalysisResult
+from app.services.firebase_service import firebase_service
 
 logger = logging.getLogger(__name__)
 
@@ -236,3 +237,102 @@ async def analyze_file(file_id: str) -> FileAnalysisResult:
             content_type="unknown",
             error=str(e)
         )
+
+async def save_file(content: Union[str, bytes], filename: str, user_id: str = "system") -> FileInfo:
+    """
+    Save a file with the given content and filename
+    
+    Args:
+        content: The content to save (string or bytes)
+        filename: The filename to use
+        user_id: The user ID to associate with the file
+        
+    Returns:
+        FileInfo object with details about the saved file
+    """
+    try:
+        # Generate a unique file ID
+        file_id = str(uuid.uuid4())
+        new_filename = f"{file_id}_{filename}"
+        
+        # Create the upload directory if it doesn't exist
+        os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+        
+        # Full path to save the file
+        file_path = os.path.join(settings.UPLOAD_DIR, new_filename)
+        
+        # Convert string content to bytes if needed
+        if isinstance(content, str):
+            file_content = content.encode('utf-8')
+        else:
+            file_content = content
+        
+        # Write the content to the file
+        async with aiofiles.open(file_path, 'wb') as f:
+            await f.write(file_content)
+        
+        # Get file size
+        file_size = os.path.getsize(file_path)
+        
+        # Get content type
+        content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        
+        # Create file info
+        file_info = FileInfo(
+            id=file_id,
+            filename=new_filename,
+            original_filename=filename,
+            content_type=content_type,
+            size=file_size,
+            user_id=user_id,
+            url=f"/static/uploads/{new_filename}",
+            created_at=datetime.utcnow()
+        )
+        
+        # Store in Firebase if available
+        if firebase_service.is_initialized():
+            firebase_service.save_document(
+                "files",
+                {
+                    "id": file_id,
+                    "filename": new_filename,
+                    "original_filename": filename,
+                    "content_type": content_type,
+                    "size": file_size,
+                    "user_id": user_id,
+                    "url": f"/static/uploads/{new_filename}",
+                    "created_at": datetime.utcnow().isoformat()
+                },
+                file_id
+            )
+        
+        return file_info
+    except Exception as e:
+        logger.error(f"Error saving file: {e}")
+        raise
+
+async def read_file(file_id: str) -> Optional[bytes]:
+    """
+    Read a file's content by its ID
+    
+    Args:
+        file_id: The ID of the file to read
+        
+    Returns:
+        The file content as bytes, or None if the file was not found
+    """
+    try:
+        # Get file info
+        file_info = await get_file_info(file_id)
+        if not file_info:
+            return None
+        
+        # Get the full path
+        file_path = os.path.join(settings.UPLOAD_DIR, file_info.filename)
+        
+        # Read and return the file content
+        async with aiofiles.open(file_path, 'rb') as f:
+            return await f.read()
+    except Exception as e:
+        logger.error(f"Error reading file: {e}")
+        return None

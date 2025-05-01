@@ -3,6 +3,7 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 from app.core.config import settings
 from app.models.settings import UserSettings, UserSettingsUpdate, UserSettingsResponse, AIProvider, SpeechSettings
+from app.services.firebase_service import firebase_service
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,14 @@ async def get_user_settings(user_id: str) -> UserSettingsResponse:
     Get settings for a user
     """
     try:
-        # Check if settings exist for this user
+        # Try to get settings from Firebase first
+        if firebase_service.is_initialized():
+            firebase_settings = firebase_service.get_document("user_settings", user_id)
+            if firebase_settings:
+                logger.info(f"Retrieved user settings from Firebase for user {user_id}")
+                return UserSettingsResponse(**firebase_settings)
+        
+        # Check if settings exist in memory cache
         if user_id in settings_db:
             user_settings = settings_db[user_id]
         else:
@@ -30,6 +38,7 @@ async def get_user_settings(user_id: str) -> UserSettingsResponse:
             )
             
             # Create default settings
+            now = datetime.utcnow().isoformat()
             user_settings = {
                 "user_id": user_id,
                 "theme": "system",
@@ -40,9 +49,16 @@ async def get_user_settings(user_id: str) -> UserSettingsResponse:
                 "speech_dialect": None,
                 "speech_settings": speech_settings.model_dump(),
                 "code_execution": True,
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
+                "created_at": now,
+                "updated_at": now
             }
+            
+            # Save to Firebase if available
+            if firebase_service.is_initialized():
+                firebase_service.save_document("user_settings", user_settings, user_id)
+                logger.info(f"Created new user settings in Firebase for user {user_id}")
+            
+            # Also save to memory cache
             settings_db[user_id] = user_settings
         
         # Create response
@@ -118,9 +134,14 @@ async def update_user_settings(user_id: str, settings_update: UserSettingsUpdate
         if settings_update.code_execution is not None:
             updated_settings["code_execution"] = settings_update.code_execution
         
-        updated_settings["updated_at"] = datetime.utcnow()
+        updated_settings["updated_at"] = datetime.utcnow().isoformat()
         
-        # Save settings
+        # Save to Firebase if available
+        if firebase_service.is_initialized():
+            firebase_service.update_document("user_settings", user_id, updated_settings)
+            logger.info(f"Updated user settings in Firebase for user {user_id}")
+        
+        # Also save to memory cache
         settings_db[user_id] = updated_settings
         
         # Create response

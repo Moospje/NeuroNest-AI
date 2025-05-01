@@ -43,11 +43,16 @@ class DockerConfig(BaseModel):
     
 class RuntimeEnvironment(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    project_id: str
+    name: str
+    description: Optional[str] = None
     language: str
-    status: str
-    created_at: str
-    updated_at: str
+    version: Optional[str] = None
+    image: Optional[str] = None
+    file_extensions: Optional[List[str]] = None
+    project_id: Optional[str] = "default"
+    status: str = "active"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
     environment_vars: Dict[str, str] = {}
     entry_point: Optional[str] = None
     container_id: Optional[str] = None
