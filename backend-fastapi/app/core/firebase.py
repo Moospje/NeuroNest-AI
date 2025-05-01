@@ -20,6 +20,10 @@ def initialize_firebase():
     global firebase_app, db, bucket
     
     try:
+        # Default path to the service account key
+        default_credentials_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 
+                                               "firebase", "serviceAccountKey.json")
+        
         # Check if Firebase credentials are provided
         if settings.FIREBASE_CREDENTIALS:
             # If credentials are provided as a JSON string
@@ -29,20 +33,25 @@ def initialize_firebase():
             # If credentials are provided as a path to a JSON file
             else:
                 cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS)
-                
-            # Initialize Firebase Admin SDK
-            firebase_app = firebase_admin.initialize_app(cred)
-            db = firestore.client()
-            
-            # Initialize Storage bucket if available
-            try:
-                bucket = storage.bucket()
-            except Exception as e:
-                logger.warning(f"Firebase Storage initialization failed: {e}")
-                
-            logger.info("Firebase Admin SDK initialized successfully")
+        elif os.path.exists(default_credentials_path):
+            # Use the default credentials file if it exists
+            cred = credentials.Certificate(default_credentials_path)
+            logger.info(f"Using default Firebase credentials from {default_credentials_path}")
         else:
             logger.warning("Firebase credentials not provided. Firebase functionality will be limited.")
+            return
+                
+        # Initialize Firebase Admin SDK
+        firebase_app = firebase_admin.initialize_app(cred)
+        db = firestore.client()
+        
+        # Initialize Storage bucket if available
+        try:
+            bucket = storage.bucket()
+        except Exception as e:
+            logger.warning(f"Firebase Storage initialization failed: {e}")
+            
+        logger.info("Firebase Admin SDK initialized successfully")
     except Exception as e:
         logger.error(f"Error initializing Firebase Admin SDK: {e}")
         

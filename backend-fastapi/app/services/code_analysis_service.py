@@ -23,37 +23,21 @@ class CodeAnalysisService:
     
     def _init_tree_sitter(self):
         """Initialize tree-sitter language parsers"""
-        # Path to tree-sitter language libraries
-        # In production, these should be pre-built and stored in a known location
-        try:
-            # Try to load pre-built languages
-            self.PY_LANGUAGE = Language('/tmp/tree-sitter-languages.so', 'python')
-            self.JS_LANGUAGE = Language('/tmp/tree-sitter-languages.so', 'javascript')
-            self.TS_LANGUAGE = Language('/tmp/tree-sitter-languages.so', 'typescript')
-        except:
-            # Build languages if not available
-            # Note: In production, this should be done during deployment
-            Language.build_library(
-                '/tmp/tree-sitter-languages.so',
-                [
-                    '/tmp/tree-sitter-python',
-                    '/tmp/tree-sitter-javascript',
-                    '/tmp/tree-sitter-typescript'
-                ]
-            )
-            self.PY_LANGUAGE = Language('/tmp/tree-sitter-languages.so', 'python')
-            self.JS_LANGUAGE = Language('/tmp/tree-sitter-languages.so', 'javascript')
-            self.TS_LANGUAGE = Language('/tmp/tree-sitter-languages.so', 'typescript')
+        # Skip tree-sitter initialization for now
+        # This is a temporary fix until we can properly set up tree-sitter
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning("Tree-sitter initialization skipped - code analysis features will be limited")
         
-        # Create parsers
-        self.py_parser = Parser()
-        self.py_parser.set_language(self.PY_LANGUAGE)
+        # Set dummy values
+        self.PY_LANGUAGE = None
+        self.JS_LANGUAGE = None
+        self.TS_LANGUAGE = None
+        self.py_parser = None
         
-        self.js_parser = Parser()
-        self.js_parser.set_language(self.JS_LANGUAGE)
-        
-        self.ts_parser = Parser()
-        self.ts_parser.set_language(self.TS_LANGUAGE)
+        # Set dummy parsers
+        self.js_parser = None
+        self.ts_parser = None
     
     def analyze_python_code(self, code: str) -> Dict[str, Any]:
         """

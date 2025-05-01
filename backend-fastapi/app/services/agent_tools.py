@@ -33,8 +33,8 @@ logger = logging.getLogger(__name__)
 
 class ReadFileTool(BaseTool):
     """Tool for reading file content."""
-    name = "read_file"
-    description = "Read the content of a file by providing the file_id or file path"
+    name: str = "read_file"
+    description: str = "Read the content of a file by providing the file_id or file path"
     
     def _run(self, file_id: str) -> str:
         """Read file content."""
@@ -51,8 +51,8 @@ class ReadFileTool(BaseTool):
 
 class WriteFileTool(BaseTool):
     """Tool for writing content to a file."""
-    name = "write_file"
-    description = "Write content to a file by providing the file path and content"
+    name: str = "write_file"
+    description: str = "Write content to a file by providing the file path and content"
     
     def _run(self, file_path: str, content: str) -> str:
         """Write content to a file."""
@@ -69,8 +69,8 @@ class WriteFileTool(BaseTool):
 
 class AnalyzeFileTool(BaseTool):
     """Tool for analyzing file content."""
-    name = "analyze_file"
-    description = "Analyze a file to extract information by providing the file_id"
+    name: str = "analyze_file"
+    description: str = "Analyze a file to extract information by providing the file_id"
     
     def _run(self, file_id: str) -> str:
         """Analyze file content."""
@@ -87,8 +87,8 @@ class AnalyzeFileTool(BaseTool):
 
 class ExecuteCodeTool(BaseTool):
     """Tool for executing code in a secure environment."""
-    name = "execute_code"
-    description = "Execute code in a secure environment by providing the code and language"
+    name: str = "execute_code"
+    description: str = "Execute code in a secure environment by providing the code and language"
     
     def _run(self, code: str, language: str = "python", timeout: int = 30) -> str:
         """Execute code in a secure environment."""
@@ -117,8 +117,8 @@ class ExecuteCodeTool(BaseTool):
 
 class CreateProjectTool(BaseTool):
     """Tool for creating a new project."""
-    name = "create_project"
-    description = "Create a new project by providing the project name, description, and type"
+    name: str = "create_project"
+    description: str = "Create a new project by providing the project name, description, and type"
     
     def _run(self, name: str, description: str, project_type: str = "web") -> str:
         """Create a new project."""
@@ -140,8 +140,8 @@ class CreateProjectTool(BaseTool):
 
 class CreateProjectFileTool(BaseTool):
     """Tool for creating a file in a project."""
-    name = "create_project_file"
-    description = "Create a file in a project by providing the project_id, file_path, and content"
+    name: str = "create_project_file"
+    description: str = "Create a file in a project by providing the project_id, file_path, and content"
     
     def _run(self, project_id: str, file_path: str, content: str) -> str:
         """Create a file in a project."""
@@ -163,8 +163,8 @@ class CreateProjectFileTool(BaseTool):
 
 class GetProjectFilesTool(BaseTool):
     """Tool for getting files in a project."""
-    name = "get_project_files"
-    description = "Get files in a project by providing the project_id"
+    name: str = "get_project_files"
+    description: str = "Get files in a project by providing the project_id"
     
     def _run(self, project_id: str) -> str:
         """Get files in a project."""

@@ -434,6 +434,106 @@ async def create_project_from_code(
         logger.error(f"Error creating project from code: {e}")
         return None
 
+async def get_project_files(project_id: str) -> List[ProjectFile]:
+    """
+    Get all files in a project
+    """
+    try:
+        # Get project directory
+        project_dir = os.path.join(settings.PROJECTS_DIR, project_id)
+        
+        # Check if project exists
+        if not os.path.exists(project_dir):
+            return []
+        
+        # Read metadata
+        async with aiofiles.open(os.path.join(project_dir, "metadata.json"), 'r') as f:
+            metadata = json.loads(await f.read())
+        
+        # Get files from metadata
+        files = []
+        for file_path, file_data in metadata.get("files", {}).items():
+            files.append(ProjectFile(
+                path=file_path,
+                name=os.path.basename(file_path),
+                content=file_data.get("content", ""),
+                language=file_data.get("language", "plaintext"),
+                size=len(file_data.get("content", "")),
+                last_modified=datetime.fromisoformat(metadata["updated_at"])
+            ))
+        
+        return files
+    except Exception as e:
+        logger.error(f"Error getting project files: {e}")
+        return []
+
+async def create_project_file(
+    project_id: str,
+    file_path: str,
+    content: str,
+    language: str = "plaintext"
+) -> Optional[Dict[str, Any]]:
+    """
+    Create a file in a project without requiring user_id verification
+    Used by agent tools
+    
+    Args:
+        project_id: Project ID
+        file_path: File path
+        content: File content
+        language: File language
+        
+    Returns:
+        File info or None if failed
+    """
+    try:
+        # Get project directory
+        project_dir = os.path.join(settings.PROJECTS_DIR, project_id)
+        
+        # Check if project exists
+        if not os.path.exists(project_dir):
+            return None
+        
+        # Read metadata
+        async with aiofiles.open(os.path.join(project_dir, "metadata.json"), 'r') as f:
+            metadata = json.loads(await f.read())
+        
+        # Normalize file path
+        normalized_path = file_path.lstrip('/')
+        
+        # Create directories if needed
+        file_dir = os.path.dirname(normalized_path)
+        if file_dir:
+            os.makedirs(os.path.join(project_dir, file_dir), exist_ok=True)
+        
+        # Save file
+        full_path = os.path.join(project_dir, normalized_path)
+        async with aiofiles.open(full_path, 'w') as f:
+            await f.write(content)
+        
+        # Update metadata
+        metadata["files"][normalized_path] = {
+            "content": content,
+            "language": language
+        }
+        metadata["updated_at"] = datetime.utcnow().isoformat()
+        
+        # Save metadata
+        async with aiofiles.open(os.path.join(project_dir, "metadata.json"), 'w') as f:
+            await f.write(json.dumps(metadata, indent=2))
+        
+        return {
+            "path": normalized_path,
+            "name": os.path.basename(normalized_path),
+            "content": content,
+            "language": language,
+            "size": len(content),
+            "last_modified": metadata["updated_at"]
+        }
+    except Exception as e:
+        logger.error(f"Error creating file in project: {e}")
+        return None
+
 async def parse_code_blocks(content: str) -> Dict[str, FileContent]:
     """
     Parse code blocks from markdown content
