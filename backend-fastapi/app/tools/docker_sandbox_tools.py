@@ -2,7 +2,7 @@
 Docker Sandbox Tools for LangChain Agents
 """
 
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Type
 from langchain.tools import BaseTool, StructuredTool, tool
 from pydantic import BaseModel, Field
 
@@ -13,9 +13,9 @@ class CreateSandboxSessionInput(BaseModel):
 class CreateSandboxSessionTool(BaseTool):
     """Tool for creating a sandbox session"""
     
-    name = "create_sandbox_session"
-    description = "Creates a new sandbox session for executing code"
-    args_schema = CreateSandboxSessionInput
+    name: str = "create_sandbox_session"
+    description: str = "Creates a new sandbox session for executing code"
+    args_schema: Type[BaseModel] = CreateSandboxSessionInput
     
     def __init__(self, docker_sandbox_service):
         """Initialize with Docker sandbox service"""
@@ -39,9 +39,9 @@ class ExecutePythonCodeInput(BaseModel):
 class ExecutePythonCodeTool(BaseTool):
     """Tool for executing Python code in a sandbox"""
     
-    name = "execute_python_code"
-    description = "Executes Python code in a sandbox environment"
-    args_schema = ExecutePythonCodeInput
+    name: str = "execute_python_code"
+    description: str = "Executes Python code in a sandbox environment"
+    args_schema: Type[BaseModel] = ExecutePythonCodeInput
     
     def __init__(self, docker_sandbox_service):
         """Initialize with Docker sandbox service"""
@@ -65,9 +65,9 @@ class ExecuteJavaScriptCodeInput(BaseModel):
 class ExecuteJavaScriptCodeTool(BaseTool):
     """Tool for executing JavaScript code in a sandbox"""
     
-    name = "execute_javascript_code"
-    description = "Executes JavaScript code in a sandbox environment"
-    args_schema = ExecuteJavaScriptCodeInput
+    name: str = "execute_javascript_code"
+    description: str = "Executes JavaScript code in a sandbox environment"
+    args_schema: Type[BaseModel] = ExecuteJavaScriptCodeInput
     
     def __init__(self, docker_sandbox_service):
         """Initialize with Docker sandbox service"""
@@ -90,9 +90,9 @@ class InstallPackageInput(BaseModel):
 class InstallPackageTool(BaseTool):
     """Tool for installing a package in a sandbox"""
     
-    name = "install_package"
-    description = "Installs a package in a sandbox environment"
-    args_schema = InstallPackageInput
+    name: str = "install_package"
+    description: str = "Installs a package in a sandbox environment"
+    args_schema: Type[BaseModel] = InstallPackageInput
     
     def __init__(self, docker_sandbox_service):
         """Initialize with Docker sandbox service"""
@@ -116,9 +116,9 @@ class UploadFileInput(BaseModel):
 class UploadFileTool(BaseTool):
     """Tool for uploading a file to a sandbox"""
     
-    name = "upload_file"
-    description = "Uploads a file to a sandbox environment"
-    args_schema = UploadFileInput
+    name: str = "upload_file"
+    description: str = "Uploads a file to a sandbox environment"
+    args_schema: Type[BaseModel] = UploadFileInput
     
     def __init__(self, docker_sandbox_service):
         """Initialize with Docker sandbox service"""
@@ -141,9 +141,9 @@ class ListFilesInput(BaseModel):
 class ListFilesTool(BaseTool):
     """Tool for listing files in a sandbox"""
     
-    name = "list_files"
-    description = "Lists files in a sandbox environment"
-    args_schema = ListFilesInput
+    name: str = "list_files"
+    description: str = "Lists files in a sandbox environment"
+    args_schema: Type[BaseModel] = ListFilesInput
     
     def __init__(self, docker_sandbox_service):
         """Initialize with Docker sandbox service"""
@@ -166,9 +166,9 @@ class ReadFileInput(BaseModel):
 class ReadFileTool(BaseTool):
     """Tool for reading a file from a sandbox"""
     
-    name = "read_file"
-    description = "Reads a file from a sandbox environment"
-    args_schema = ReadFileInput
+    name: str = "read_file"
+    description: str = "Reads a file from a sandbox environment"
+    args_schema: Type[BaseModel] = ReadFileInput
     
     def __init__(self, docker_sandbox_service):
         """Initialize with Docker sandbox service"""
@@ -190,9 +190,9 @@ class CloseSandboxSessionInput(BaseModel):
 class CloseSandboxSessionTool(BaseTool):
     """Tool for closing a sandbox session"""
     
-    name = "close_sandbox_session"
-    description = "Closes a sandbox session and cleans up resources"
-    args_schema = CloseSandboxSessionInput
+    name: str = "close_sandbox_session"
+    description: str = "Closes a sandbox session and cleans up resources"
+    args_schema: Type[BaseModel] = CloseSandboxSessionInput
     
     def __init__(self, docker_sandbox_service):
         """Initialize with Docker sandbox service"""

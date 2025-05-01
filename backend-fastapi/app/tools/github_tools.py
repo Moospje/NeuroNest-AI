@@ -2,15 +2,15 @@
 GitHub Tools for LangChain Agents
 """
 
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Type
 from langchain.tools import BaseTool, StructuredTool, tool
 from pydantic import BaseModel, Field
 
 class GitHubListReposTool(BaseTool):
     """Tool for listing GitHub repositories"""
     
-    name = "github_list_repositories"
-    description = "Lists the GitHub repositories for the authenticated user"
+    name: str = "github_list_repositories"
+    description: str = "Lists the GitHub repositories for the authenticated user"
     
     def __init__(self, github_service):
         """Initialize with GitHub service"""
@@ -33,9 +33,9 @@ class GitHubCloneRepoInput(BaseModel):
 class GitHubCloneRepoTool(BaseTool):
     """Tool for cloning a GitHub repository"""
     
-    name = "github_clone_repository"
-    description = "Clones a GitHub repository to a local directory"
-    args_schema = GitHubCloneRepoInput
+    name: str = "github_clone_repository"
+    description: str = "Clones a GitHub repository to a local directory"
+    args_schema: Type[GitHubCloneRepoInput] = GitHubCloneRepoInput
     
     def __init__(self, github_service):
         """Initialize with GitHub service"""
@@ -57,9 +57,9 @@ class GitHubPullInput(BaseModel):
 class GitHubPullTool(BaseTool):
     """Tool for pulling changes from a GitHub repository"""
     
-    name = "github_pull"
-    description = "Pulls the latest changes for a repository"
-    args_schema = GitHubPullInput
+    name: str = "github_pull"
+    description: str = "Pulls the latest changes for a repository"
+    args_schema: Type[BaseModel] = GitHubPullInput
     
     def __init__(self, github_service):
         """Initialize with GitHub service"""
@@ -82,9 +82,9 @@ class GitHubPushInput(BaseModel):
 class GitHubPushTool(BaseTool):
     """Tool for pushing changes to a GitHub repository"""
     
-    name = "github_push"
-    description = "Commits and pushes changes to a repository"
-    args_schema = GitHubPushInput
+    name: str = "github_push"
+    description: str = "Commits and pushes changes to a repository"
+    args_schema: Type[BaseModel] = GitHubPushInput
     
     def __init__(self, github_service):
         """Initialize with GitHub service"""
@@ -108,9 +108,9 @@ class GitHubCreateBranchInput(BaseModel):
 class GitHubCreateBranchTool(BaseTool):
     """Tool for creating a new branch in a GitHub repository"""
     
-    name = "github_create_branch"
-    description = "Creates a new branch in a repository"
-    args_schema = GitHubCreateBranchInput
+    name: str = "github_create_branch"
+    description: str = "Creates a new branch in a repository"
+    args_schema: Type[BaseModel] = GitHubCreateBranchInput
     
     def __init__(self, github_service):
         """Initialize with GitHub service"""

@@ -4,9 +4,95 @@ import logging
 from typing import Dict, Any, Optional
 import firebase_admin
 from firebase_admin import credentials, auth, firestore, storage
-from app.core.config import settings
+from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Create a class for Firebase service
+class FirebaseService:
+    """
+    Firebase Service for interacting with Firestore and Storage
+    """
+    
+    def __init__(self):
+        """Initialize Firebase Service"""
+        self.initialized = False
+        self.db = None
+        self.bucket = None
+        
+        # Initialize Firebase if not already initialized
+        if not firebase_app:
+            initialize_firebase()
+            
+        # Set instance variables
+        self.initialized = firebase_app is not None
+        self.db = db
+        self.bucket = bucket
+    
+    def is_initialized(self) -> bool:
+        """Check if Firebase is initialized"""
+        return self.initialized and self.db is not None
+    
+    def get_document(self, collection: str, doc_id: str) -> Optional[Dict[str, Any]]:
+        """Get a document from Firestore"""
+        return get_document(collection, doc_id)
+    
+    def create_document(self, collection: str, data: Dict[str, Any], document_id: Optional[str] = None) -> Optional[str]:
+        """Create a document in Firestore with optional document ID"""
+        if document_id:
+            return save_document(collection, data, document_id)
+        return add_document(collection, data)
+    
+    def save_document(self, collection: str, data: Dict[str, Any], document_id: str) -> Optional[str]:
+        """Save a document to Firestore with a specific ID"""
+        if not self.is_initialized():
+            logger.error("Firebase not initialized")
+            return None
+            
+        try:
+            doc_ref = db.collection(collection).document(document_id)
+            doc_ref.set(data)
+            return document_id
+        except Exception as e:
+            logger.error(f"Error saving document to Firestore: {e}")
+            return None
+    
+    def update_document(self, collection: str, doc_id: str, data: Dict[str, Any]) -> bool:
+        """Update a document in Firestore"""
+        return update_document(collection, doc_id, data)
+    
+    def delete_document(self, collection: str, doc_id: str) -> bool:
+        """Delete a document from Firestore"""
+        return delete_document(collection, doc_id)
+    
+    def query_documents(self, collection: str, field: str, operator: str, value: Any) -> Optional[list]:
+        """Query documents from Firestore"""
+        return query_documents(collection, field, operator, value)
+        
+    def get_available_collections(self) -> list:
+        """Get a list of available collections"""
+        if not self.is_initialized():
+            logger.warning("Firestore not initialized")
+            return []
+            
+        try:
+            collections = db.collections()
+            return [collection.id for collection in collections]
+        except Exception as e:
+            logger.error(f"Error getting collections: {e}")
+            return []
+    
+    def upload_file(self, file_path: str, destination_path: str) -> Optional[str]:
+        """Upload a file to Firebase Storage"""
+        return upload_file(file_path, destination_path)
+    
+    def download_file(self, source_path: str, destination_path: str) -> bool:
+        """Download a file from Firebase Storage"""
+        return download_file(source_path, destination_path)
+    
+    def delete_file(self, file_path: str) -> bool:
+        """Delete a file from Firebase Storage"""
+        return delete_file(file_path)
 
 # Initialize Firebase Admin SDK
 firebase_app = None
@@ -21,18 +107,17 @@ def initialize_firebase():
     
     try:
         # Default path to the service account key
-        default_credentials_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 
-                                               "firebase", "serviceAccountKey.json")
+        default_credentials_path = "/workspace/NeuroNest-AI/firebase/serviceAccountKey.json"
         
         # Check if Firebase credentials are provided
-        if settings.FIREBASE_CREDENTIALS:
+        if hasattr(settings, 'firebase_credentials') and settings.firebase_credentials:
             # If credentials are provided as a JSON string
-            if settings.FIREBASE_CREDENTIALS.startswith('{'):
-                cred_dict = json.loads(settings.FIREBASE_CREDENTIALS)
+            if settings.firebase_credentials.startswith('{'):
+                cred_dict = json.loads(settings.firebase_credentials)
                 cred = credentials.Certificate(cred_dict)
             # If credentials are provided as a path to a JSON file
             else:
-                cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS)
+                cred = credentials.Certificate(settings.firebase_credentials)
         elif os.path.exists(default_credentials_path):
             # Use the default credentials file if it exists
             cred = credentials.Certificate(default_credentials_path)
@@ -41,8 +126,15 @@ def initialize_firebase():
             logger.warning("Firebase credentials not provided. Firebase functionality will be limited.")
             return
                 
-        # Initialize Firebase Admin SDK
-        firebase_app = firebase_admin.initialize_app(cred)
+        # Initialize Firebase Admin SDK with storage bucket
+        try:
+            firebase_app = firebase_admin.initialize_app(cred, {
+                'storageBucket': 'manusai-next.appspot.com'
+            })
+        except ValueError as e:
+            logger.warning(f"Firebase Storage initialization failed: {e}")
+            firebase_app = firebase_admin.initialize_app(cred)
+            
         db = firestore.client()
         
         # Initialize Storage bucket if available
@@ -57,6 +149,9 @@ def initialize_firebase():
         
 # Initialize Firebase on module import
 initialize_firebase()
+
+# Create a singleton instance of FirebaseService
+firebase_service = FirebaseService()
 
 # Firebase Authentication functions
 def verify_firebase_token(id_token: str) -> Dict[str, Any]:
