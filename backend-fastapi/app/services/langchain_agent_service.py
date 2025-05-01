@@ -102,13 +102,14 @@ class LangChainAgentService:
         else:
             raise ValueError(f"Unsupported agent type: {agent_type}")
         
+        import time
         # Store the agent
         self.agents[agent_id] = {
             "agent": agent,
             "type": agent_type,
             "user_id": user_id,
             "memory": [],  # Store conversation history
-            "created_at": import time; time.time()
+            "created_at": time.time()
         }
         
         return agent_id

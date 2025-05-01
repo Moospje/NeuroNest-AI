@@ -18,6 +18,24 @@ class FirebaseService:
     Service for interacting with Firebase Firestore and Storage
     """
     
+    def get_available_collections(self) -> List[str]:
+        """
+        Get a list of available collections in Firestore
+        
+        Returns:
+            List[str]: List of collection names
+        """
+        if not db:
+            logger.warning("Firestore not initialized")
+            return []
+            
+        try:
+            collections = db.collections()
+            return [collection.id for collection in collections]
+        except Exception as e:
+            logger.error(f"Error getting collections from Firestore: {e}")
+            return []
+    
     @staticmethod
     def is_initialized() -> bool:
         """

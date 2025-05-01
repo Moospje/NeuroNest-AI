@@ -17,7 +17,7 @@ import aiofiles
 from app.core.config import settings
 from app.models.execution import RuntimeEnvironment, RuntimeStatus, RuntimeLog
 from app.services.docker_service import DockerService
-from app.services.file_service import FileService
+import app.services.file_service as file_service
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class RuntimeService:
     def __init__(self):
         self.logger = logger
         self.docker_service = DockerService()
-        self.file_service = FileService()
+        self.file_service = file_service
         
         # Initialize Docker client if code execution is enabled
         self.docker_client = None

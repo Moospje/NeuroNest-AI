@@ -36,7 +36,7 @@ class Settings(BaseModel):
     ANTHROPIC_API_KEY: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
     
     # Docker settings
-    ENABLE_CODE_EXECUTION: bool = os.getenv("ENABLE_CODE_EXECUTION", "true").lower() == "true"
+    ENABLE_CODE_EXECUTION: bool = os.getenv("ENABLE_CODE_EXECUTION", "false").lower() == "true"
     DOCKER_BASE_IMAGE: str = os.getenv("DOCKER_BASE_IMAGE", "python:3.10-slim")
     DOCKER_NETWORK: str = os.getenv("DOCKER_NETWORK", "bridge")
     DOCKER_TIMEOUT: int = int(os.getenv("DOCKER_TIMEOUT", "60"))

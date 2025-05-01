@@ -12,108 +12,114 @@ import docker
 import time
 from typing import Dict, List, Any, Optional, Tuple, Union
 from datetime import datetime
-from app.core.config import settings
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Initialize Docker client if code execution is enabled
-docker_client = None
-if settings.ENABLE_CODE_EXECUTION:
-    try:
-        docker_client = docker.from_env()
-        logger.info("Docker client initialized successfully")
+class DockerService:
+    """Service for managing Docker containers"""
+    
+    def __init__(self):
+        self.docker_client = None
+        self.active_containers = {}
         
-        # Check if Docker is running
-        docker_client.ping()
-        logger.info("Docker daemon is running")
-    except Exception as e:
-        logger.error(f"Error initializing Docker client: {e}")
-        logger.warning("Code execution will be disabled")
-        
-# Track active containers
-active_containers = {}
+        if settings.docker_enabled:
+            try:
+                self.docker_client = docker.from_env()
+                logger.info("Docker client initialized successfully")
+                
+                # Check if Docker is running
+                self.docker_client.ping()
+                logger.info("Docker daemon is running")
+            except Exception as e:
+                logger.error(f"Error initializing Docker client: {e}")
+                logger.warning("Code execution will be disabled")
 
-def create_container(
-    image: str,
-    command: str,
-    working_dir: str = "/app",
-    volumes: Dict[str, Dict[str, str]] = None,
-    environment: Dict[str, str] = None,
-    network: str = None,
-    memory: str = None,
-    cpu_limit: float = None,
-    timeout: int = 60
-) -> Tuple[str, Dict[str, Any]]:
-    """
-    Create and start a Docker container.
-    
-    Args:
-        image: Docker image to use
-        command: Command to run in the container
-        working_dir: Working directory in the container
-        volumes: Volumes to mount
-        environment: Environment variables
-        network: Network to use
-        memory: Memory limit
-        cpu_limit: CPU limit
-        timeout: Timeout in seconds
+    def create_container(
+        self,
+        image: str,
+        command: str,
+        working_dir: str = "/app",
+        volumes: Dict[str, Dict[str, str]] = None,
+        environment: Dict[str, str] = None,
+        network: str = None,
+        memory: str = None,
+        cpu_limit: float = None,
+        timeout: int = 60
+    ) -> Tuple[str, Dict[str, Any]]:
+        """
+        Create and start a Docker container.
         
-    Returns:
-        Tuple of container ID and container info
-    """
-    if not docker_client:
-        raise Exception("Docker client is not initialized")
+        Args:
+            image: Docker image to use
+            command: Command to run in the container
+            working_dir: Working directory in the container
+            volumes: Volumes to mount
+            environment: Environment variables
+            network: Network to use
+            memory: Memory limit
+            cpu_limit: CPU limit
+            timeout: Timeout in seconds
+            
+        Returns:
+            Tuple of container ID and container info
+        """
+        if not self.docker_client:
+            raise Exception("Docker client is not initialized")
+            
+        # Generate a unique container name
+        container_name = f"neuronest-{uuid.uuid4().hex[:8]}"
         
-    # Generate a unique container name
-    container_name = f"{settings.DOCKER_CONTAINER_PREFIX}{uuid.uuid4().hex[:8]}"
-    
-    # Set default values
-    if network is None:
-        network = settings.DOCKER_NETWORK
-    if memory is None:
-        memory = settings.DOCKER_MEMORY_LIMIT
-    if cpu_limit is None:
-        cpu_limit = settings.DOCKER_CPU_LIMIT
-    if timeout is None:
-        timeout = settings.DOCKER_TIMEOUT
-        
-    # Create container
-    try:
-        container = docker_client.containers.create(
-            image=image,
-            command=command,
-            name=container_name,
-            working_dir=working_dir,
-            volumes=volumes,
-            environment=environment,
-            network=network,
-            mem_limit=memory,
-            cpu_period=100000,  # Docker CPU period (microseconds)
-            cpu_quota=int(100000 * cpu_limit),  # CPU quota based on period
-            detach=True
-        )
-        
-        # Start container
-        container.start()
-        
-        # Store container info
-        container_info = {
-            "id": container.id,
-            "name": container_name,
-            "image": image,
-            "command": command,
-            "status": "running",
-            "start_time": datetime.utcnow(),
-            "timeout": timeout
-        }
-        
-        # Add to active containers
-        active_containers[container.id] = container_info
-        
-        return container.id, container_info
-    except Exception as e:
-        logger.error(f"Error creating container: {e}")
-        raise
+        # Set default values
+        if network is None:
+            network = settings.docker_network
+        if timeout is None:
+            timeout = settings.docker_timeout
+            
+        # Create container
+        try:
+            container = self.docker_client.containers.create(
+                image=image,
+                command=command,
+                name=container_name,
+                working_dir=working_dir,
+                volumes=volumes,
+                environment=environment,
+                network=network,
+                mem_limit=memory,
+                cpu_period=100000,  # Docker CPU period (microseconds)
+                cpu_quota=int(100000 * cpu_limit) if cpu_limit else None,  # CPU quota based on period
+                detach=True
+            )
+            
+            # Start container
+            container.start()
+            
+            # Store container info
+            container_info = {
+                "id": container.id,
+                "name": container_name,
+                "image": image,
+                "command": command,
+                "status": "running",
+                "start_time": datetime.utcnow(),
+                "timeout": timeout
+            }
+            
+            # Add to active containers
+            self.active_containers[container.id] = container_info
+            
+            return container.id, container_info
+        except Exception as e:
+            logger.error(f"Error creating container: {e}")
+            raise
+
+# Global instance for backward compatibility
+docker_service = DockerService()
+
+# For backward compatibility
+def create_container(*args, **kwargs):
+    return docker_service.create_container(*args, **kwargs)
         
 def get_container_logs(container_id: str) -> str:
     """
@@ -125,11 +131,11 @@ def get_container_logs(container_id: str) -> str:
     Returns:
         Container logs
     """
-    if not docker_client:
+    if not docker_service.docker_client:
         raise Exception("Docker client is not initialized")
         
     try:
-        container = docker_client.containers.get(container_id)
+        container = docker_service.docker_client.containers.get(container_id)
         logs = container.logs().decode("utf-8")
         return logs
     except Exception as e:
@@ -146,20 +152,20 @@ def stop_container(container_id: str) -> Dict[str, Any]:
     Returns:
         Container info
     """
-    if not docker_client:
+    if not docker_service.docker_client:
         raise Exception("Docker client is not initialized")
         
     try:
-        container = docker_client.containers.get(container_id)
+        container = docker_service.docker_client.containers.get(container_id)
         container.stop(timeout=5)
         container.remove()
         
         # Update container info
-        if container_id in active_containers:
-            container_info = active_containers[container_id]
+        if container_id in docker_service.active_containers:
+            container_info = docker_service.active_containers[container_id]
             container_info["status"] = "stopped"
             container_info["end_time"] = datetime.utcnow()
-            del active_containers[container_id]
+            del docker_service.active_containers[container_id]
             return container_info
         else:
             return {
@@ -193,7 +199,7 @@ def execute_code_in_container(
     Returns:
         Execution result
     """
-    if not docker_client:
+    if not docker_service.docker_client:
         raise Exception("Docker client is not initialized")
         
     # Create a temporary directory for the code
@@ -283,7 +289,7 @@ def execute_code_in_container(
         
         # Wait for container to finish or timeout
         start_time = time.time()
-        container = docker_client.containers.get(container_id)
+        container = docker_service.docker_client.containers.get(container_id)
         
         while container.status == "running":
             # Check if timeout has been reached
@@ -314,12 +320,12 @@ def execute_code_in_container(
         container.remove()
         
         # Update container info
-        if container_id in active_containers:
-            container_info = active_containers[container_id]
+        if container_id in docker_service.active_containers:
+            container_info = docker_service.active_containers[container_id]
             container_info["status"] = "completed"
             container_info["end_time"] = datetime.utcnow()
             container_info["exit_code"] = exit_code
-            del active_containers[container_id]
+            del docker_service.active_containers[container_id]
             
         # Return result
         return {
@@ -351,10 +357,10 @@ def cleanup_containers():
     """
     Clean up all active containers.
     """
-    if not docker_client:
+    if not docker_service.docker_client:
         return
         
-    for container_id in list(active_containers.keys()):
+    for container_id in list(docker_service.active_containers.keys()):
         try:
             stop_container(container_id)
         except Exception as e:

@@ -21,7 +21,15 @@ class DockerSandboxService:
         Args:
             base_image: Base Docker image to use for sandboxes
         """
-        self.client = docker.from_env()
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            self.client = docker.from_env()
+        except Exception as e:
+            logger.error(f"Error initializing Docker client: {e}")
+            self.client = None
+            
         self.base_image = base_image
         self.containers = {}  # Map of session_id -> container_id
         self.temp_dirs = {}   # Map of session_id -> temp_dir_path
@@ -36,48 +44,70 @@ class DockerSandboxService:
         Returns:
             Dictionary with session information
         """
+        import logging
+        logger = logging.getLogger(__name__)
+        
         # Generate a unique session ID
         session_id = str(uuid.uuid4())
         
-        # Create a temporary directory for the session
-        temp_dir = tempfile.mkdtemp(prefix=f"sandbox-{session_id}-")
-        self.temp_dirs[session_id] = temp_dir
+        # Check if Docker client is available
+        if self.client is None:
+            logger.warning("Docker client not available, returning dummy session")
+            return {
+                "session_id": session_id,
+                "language": language,
+                "status": "error",
+                "message": "Docker service not available"
+            }
         
-        # Determine the appropriate Docker image based on language
-        image = self._get_image_for_language(language)
-        
-        # Create a container for the session
-        container = self.client.containers.run(
-            image=image,
-            command="tail -f /dev/null",  # Keep container running
-            detach=True,
-            remove=True,
-            working_dir="/workspace",
-            volumes={
-                temp_dir: {
-                    "bind": "/workspace",
-                    "mode": "rw"
-                }
-            },
-            # Security constraints
-            mem_limit="512m",
-            memswap_limit="512m",
-            cpu_period=100000,
-            cpu_quota=50000,  # 50% of CPU
-            network_mode="none",  # No network access
-            cap_drop=["ALL"],  # Drop all capabilities
-            security_opt=["no-new-privileges"]
-        )
-        
-        # Store container ID
-        self.containers[session_id] = container.id
-        
-        return {
-            "session_id": session_id,
-            "language": language,
-            "status": "created",
-            "container_id": container.id
-        }
+        try:
+            # Create a temporary directory for the session
+            temp_dir = tempfile.mkdtemp(prefix=f"sandbox-{session_id}-")
+            self.temp_dirs[session_id] = temp_dir
+            
+            # Determine the appropriate Docker image based on language
+            image = self._get_image_for_language(language)
+            
+            # Create a container for the session
+            container = self.client.containers.run(
+                image=image,
+                command="tail -f /dev/null",  # Keep container running
+                detach=True,
+                remove=True,
+                working_dir="/workspace",
+                volumes={
+                    temp_dir: {
+                        "bind": "/workspace",
+                        "mode": "rw"
+                    }
+                },
+                # Security constraints
+                mem_limit="512m",
+                memswap_limit="512m",
+                cpu_period=100000,
+                cpu_quota=50000,  # 50% of CPU
+                network_mode="none",  # No network access
+                cap_drop=["ALL"],  # Drop all capabilities
+                security_opt=["no-new-privileges"]
+            )
+            
+            # Store container ID
+            self.containers[session_id] = container.id
+            
+            return {
+                "session_id": session_id,
+                "language": language,
+                "status": "created",
+                "container_id": container.id
+            }
+        except Exception as e:
+            logger.error(f"Error creating Docker container: {e}")
+            return {
+                "session_id": session_id,
+                "language": language,
+                "status": "error",
+                "message": str(e)
+            }
     
     def execute_code(self, session_id: str, code: str, timeout: int = 30) -> Dict[str, Any]:
         """

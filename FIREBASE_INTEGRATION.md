@@ -4,13 +4,14 @@ This document describes the integration of Firebase services into the NeuroNest-
 
 ## Overview
 
-NeuroNest-AI now supports Firebase as a backend service for data storage and retrieval. The integration includes:
+NeuroNest-AI now uses Firebase as the primary backend service for data storage and retrieval. The integration includes:
 
 1. Firebase Admin SDK for server-side operations
-2. Firestore for database operations
-3. Firebase Storage for file storage (when available)
+2. Firestore for document database operations
+3. Firebase Storage for file storage
+4. Firebase Authentication for user management (optional)
 
-The integration is designed to work alongside the existing Supabase implementation, providing a fallback mechanism for backward compatibility.
+The integration is designed to work alongside the existing Supabase implementation, providing a fallback mechanism for backward compatibility and ensuring a smooth transition.
 
 ## Setup
 
@@ -37,13 +38,25 @@ firebase/serviceAccountKey.json
 
 ## Implementation Details
 
+### Firebase Core Module
+
+The `app/core/firebase.py` module initializes the Firebase Admin SDK and provides low-level access to Firebase services:
+
+- Initializes Firebase with the service account key
+- Provides access to Firestore and Storage
+- Includes basic CRUD operations for Firestore documents
+- Includes file operations for Firebase Storage
+
 ### Firebase Service Module
 
 A new module `firebase_service.py` has been created to provide a unified interface for interacting with Firebase services. This module includes:
 
-- Functions for initializing Firebase Admin SDK
-- CRUD operations for Firestore documents
-- File upload/download operations for Firebase Storage
+- High-level functions for working with specific collections
+- Session management functions
+- Memory storage functions
+- Conversation history functions
+- Settings management functions
+- File content storage functions
 
 ### Integration with Existing Services
 
@@ -52,15 +65,19 @@ The following services have been updated to use Firebase:
 1. **Memory Service**: Agent memories are now stored in Firestore with fallback to Supabase.
 2. **Conversation Service**: Conversations and messages are stored in Firestore with fallback to Supabase.
 3. **Settings Service**: User settings are stored in Firestore with fallback to in-memory storage.
+4. **File Service**: File metadata and content are stored in Firestore and Firebase Storage.
+5. **Project Service**: Project data is stored in Firestore.
 
 ### Data Structure
 
 The Firebase integration uses the following Firestore collections:
 
-- `agent_memories`: Stores agent memory entries
-- `conversations`: Stores conversation metadata
-- `conversation_messages`: Stores individual messages within conversations
+- `memories`: Stores agent memory entries
+- `sessions`: Stores session data
+- `conversations`: Stores conversation metadata and messages
 - `user_settings`: Stores user settings
+- `files`: Stores file metadata and content
+- `projects`: Stores project data
 
 ## Usage
 
@@ -124,6 +141,12 @@ The Firebase integration includes a fallback mechanism to ensure backward compat
 ## Future Improvements
 
 1. Implement more sophisticated security rules for Firestore
-2. Add Firebase Authentication integration
+2. Enhance Firebase Authentication integration
 3. Implement real-time updates using Firestore listeners
 4. Add more comprehensive error handling and retry mechanisms
+5. Add unit tests for Firebase integration
+6. Set up CI/CD for Firebase deployment
+7. Optimize query performance for large datasets
+8. Implement caching for frequently accessed data
+9. Add Firebase Functions for serverless operations
+10. Implement more granular security rules

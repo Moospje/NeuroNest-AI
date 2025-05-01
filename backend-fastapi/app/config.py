@@ -3,7 +3,7 @@ Application Configuration
 """
 
 import os
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     # File storage settings
     upload_dir: str = os.environ.get("UPLOAD_DIR", "/tmp/neuronest-uploads")
     projects_dir: str = os.environ.get("PROJECTS_DIR", "/tmp/neuronest-projects")
+    vector_db_path: str = os.environ.get("VECTOR_DB_PATH", "/tmp/neuronest-vector-db")
     
     # Docker settings
     docker_enabled: bool = os.environ.get("DOCKER_ENABLED", "false").lower() == "true"
@@ -48,9 +49,10 @@ class Settings(BaseSettings):
     # Debug mode
     debug: bool = os.environ.get("DEBUG", "false").lower() == "true"
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8"
+    }
 
 
 # Create settings instance

@@ -2,7 +2,7 @@
 Code Analysis Tools for LangChain Agents
 """
 
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Type
 from langchain.tools import BaseTool, StructuredTool, tool
 from pydantic import BaseModel, Field
 
@@ -13,9 +13,9 @@ class AnalyzePythonCodeInput(BaseModel):
 class AnalyzePythonCodeTool(BaseTool):
     """Tool for analyzing Python code"""
     
-    name = "analyze_python_code"
-    description = "Analyzes Python code for issues, bugs, and structure"
-    args_schema = AnalyzePythonCodeInput
+    name: str = "analyze_python_code"
+    description: str = "Analyzes Python code for issues, bugs, and structure"
+    args_schema: Type[BaseModel] = AnalyzePythonCodeInput
     
     def __init__(self, code_analysis_service):
         """Initialize with code analysis service"""
@@ -37,9 +37,9 @@ class AnalyzeJavaScriptCodeInput(BaseModel):
 class AnalyzeJavaScriptCodeTool(BaseTool):
     """Tool for analyzing JavaScript code"""
     
-    name = "analyze_javascript_code"
-    description = "Analyzes JavaScript code for issues, bugs, and structure"
-    args_schema = AnalyzeJavaScriptCodeInput
+    name: str = "analyze_javascript_code"
+    description: str = "Analyzes JavaScript code for issues, bugs, and structure"
+    args_schema: Type[BaseModel] = AnalyzeJavaScriptCodeInput
     
     def __init__(self, code_analysis_service):
         """Initialize with code analysis service"""
@@ -61,9 +61,9 @@ class AnalyzeTypeScriptCodeInput(BaseModel):
 class AnalyzeTypeScriptCodeTool(BaseTool):
     """Tool for analyzing TypeScript code"""
     
-    name = "analyze_typescript_code"
-    description = "Analyzes TypeScript code for issues, bugs, and structure"
-    args_schema = AnalyzeTypeScriptCodeInput
+    name: str = "analyze_typescript_code"
+    description: str = "Analyzes TypeScript code for issues, bugs, and structure"
+    args_schema: Type[BaseModel] = AnalyzeTypeScriptCodeInput
     
     def __init__(self, code_analysis_service):
         """Initialize with code analysis service"""

@@ -13,7 +13,13 @@ from app.services.docker_sandbox_service import DockerSandboxService
 router = APIRouter()
 
 # Initialize services
-docker_sandbox_service = DockerSandboxService()
+try:
+    docker_sandbox_service = DockerSandboxService()
+except Exception as e:
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.error(f"Error initializing Docker sandbox service: {e}")
+    docker_sandbox_service = None
 
 # Define models
 class SandboxSessionRequest(BaseModel):

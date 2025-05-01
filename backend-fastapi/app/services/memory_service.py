@@ -9,22 +9,22 @@ import json
 import uuid
 import os
 import logging
-from app.core.config import settings
+from app.config import settings
 from app.database.supabase_client import get_supabase_client
-from app.services.firebase_service import firebase_service
+from app.core.firebase import firebase_service
 
 # Import LangChain and Chroma components
 try:
     import chromadb
     from chromadb.config import Settings as ChromaSettings
-    from langchain.vectorstores import Chroma
-    from langchain.embeddings import OpenAIEmbeddings, HuggingFaceEmbeddings
-    from langchain.schema import Document
+    from langchain_community.vectorstores import Chroma
+    from langchain_community.embeddings import OpenAIEmbeddings, HuggingFaceEmbeddings
+    from langchain_core.documents import Document
     from langchain.memory import VectorStoreRetrieverMemory
     from langchain.memory import ConversationBufferMemory, ConversationBufferWindowMemory
     
     # Initialize Chroma client
-    CHROMA_PERSIST_DIRECTORY = settings.VECTOR_DB_PATH
+    CHROMA_PERSIST_DIRECTORY = settings.vector_db_path
     os.makedirs(CHROMA_PERSIST_DIRECTORY, exist_ok=True)
     
     chroma_client = chromadb.PersistentClient(
@@ -35,7 +35,7 @@ try:
     )
     
     # Initialize embedding function
-    if settings.OPENAI_API_KEY:
+    if settings.openai_api_key:
         embedding_function = OpenAIEmbeddings()
     else:
         # Use HuggingFace embeddings as fallback
@@ -52,8 +52,22 @@ except ImportError:
 class MemoryService:
     def __init__(self):
         """Initialize the memory service"""
-        self.supabase = get_supabase_client()
         self.logger = logging.getLogger(__name__)
+        
+        # Use Firebase service if initialized
+        self.use_firebase = firebase_service.is_initialized()
+        if self.use_firebase:
+            self.logger.info("Using Firebase for memory storage")
+            
+        # Fall back to Supabase if Firebase is not available
+        if not self.use_firebase:
+            try:
+                self.supabase = get_supabase_client()
+                self.logger.info("Using Supabase for memory storage")
+            except Exception as e:
+                self.logger.warning(f"Supabase initialization failed: {e}")
+                self.supabase = None
+                self.logger.warning("Using in-memory storage only (no persistence)")
         
         # Initialize vector store if available
         if VECTOR_MEMORY_AVAILABLE:
@@ -110,29 +124,37 @@ class MemoryService:
             "updated_at": now
         }
         
-        # Try to store in Firebase first
+        # Try to store in Firebase if available
         if firebase_service.is_initialized():
-            doc_id = firebase_service.save_document("agent_memories", memory_data, memory_id)
-            if doc_id:
-                memory = memory_data
-                self.logger.info(f"Memory stored in Firebase with ID: {doc_id}")
-            else:
-                # Fall back to Supabase if Firebase fails
-                self.logger.warning("Failed to store memory in Firebase, falling back to Supabase")
-                response = self.supabase.table("agent_memories").insert(memory_data).execute()
+            try:
+                # Store in Firestore using firebase_service
+                success = firebase_service.save_document("memories", memory_data, memory_id)
+                if success:
+                    self.logger.info(f"Memory stored in Firebase with ID: {memory_id}")
+                    return memory_data
+                else:
+                    self.logger.warning(f"Failed to store memory in Firebase, falling back to Supabase")
+            except Exception as e:
+                self.logger.warning(f"Failed to store memory in Firebase: {e}, falling back to Supabase")
+                # Continue to Supabase fallback
+        
+        # Fall back to Supabase if Firebase is not available or failed
+        if hasattr(self, 'supabase') and self.supabase:
+            try:
+                response = self.supabase.table("memories").insert(memory_data).execute()
                 
                 if not response.data or len(response.data) == 0:
-                    raise Exception("Failed to create memory")
+                    raise Exception("Failed to create memory in Supabase")
                 
                 memory = response.data[0]
-        else:
-            # Store in Supabase if Firebase is not initialized
-            response = self.supabase.table("agent_memories").insert(memory_data).execute()
-            
-            if not response.data or len(response.data) == 0:
-                raise Exception("Failed to create memory")
-            
-            memory = response.data[0]
+                return memory
+            except Exception as e:
+                self.logger.warning(f"Failed to store memory in Supabase: {e}")
+                # Fall back to in-memory only
+        
+        # If all else fails, just return the memory data (in-memory only)
+        self.logger.warning("Using in-memory storage only for memory (no persistence)")
+        return memory_data
         
         # Store in vector database if available
         if VECTOR_MEMORY_AVAILABLE and self.default_collection:
@@ -197,7 +219,7 @@ class MemoryService:
             
             # Query Firebase
             memories = firebase_service.query_documents(
-                collection="agent_memories",
+                collection="memories",
                 filters=filters,
                 order_by=("created_at", "DESCENDING"),
                 limit=limit,
@@ -218,7 +240,7 @@ class MemoryService:
                 self.logger.warning("No memories found in Firebase or query failed, falling back to Supabase")
         
         # Fall back to Supabase
-        query = self.supabase.table("agent_memories").select("*").eq("user_id", user_id)
+        query = self.supabase.table("memories").select("*").eq("user_id", user_id)
         
         if agent_id:
             query = query.eq("agent_id", agent_id)
@@ -255,7 +277,7 @@ class MemoryService:
         """
         # Try to get memory from Firebase first
         if firebase_service.is_initialized():
-            memory = firebase_service.get_document("agent_memories", memory_id)
+            memory = firebase_service.get_document("memories", memory_id)
             if memory:
                 # Parse metadata JSON if needed
                 if memory.get("metadata") and isinstance(memory["metadata"], str):
@@ -267,7 +289,7 @@ class MemoryService:
                 return memory
         
         # Fall back to Supabase
-        response = self.supabase.table("agent_memories").select("*").eq("id", memory_id).execute()
+        response = self.supabase.table("memories").select("*").eq("id", memory_id).execute()
         
         if not response.data or len(response.data) == 0:
             return None
@@ -327,17 +349,17 @@ class MemoryService:
         # Try to update in Firebase first
         memory = None
         if firebase_service.is_initialized():
-            success = firebase_service.update_document("agent_memories", memory_id, update_data)
+            success = firebase_service.update_document("memories", memory_id, update_data)
             if success:
                 # Get the updated memory
-                memory = firebase_service.get_document("agent_memories", memory_id)
+                memory = firebase_service.get_document("memories", memory_id)
                 self.logger.info(f"Memory updated in Firebase with ID: {memory_id}")
             else:
                 self.logger.warning("Failed to update memory in Firebase, falling back to Supabase")
         
         # Fall back to Supabase if Firebase update failed or not initialized
         if not memory:
-            response = self.supabase.table("agent_memories").update(update_data).eq("id", memory_id).execute()
+            response = self.supabase.table("memories").update(update_data).eq("id", memory_id).execute()
             
             if not response.data or len(response.data) == 0:
                 return None
@@ -388,7 +410,7 @@ class MemoryService:
         
         # Try to delete from Firebase first
         if firebase_service.is_initialized():
-            firebase_success = firebase_service.delete_document("agent_memories", memory_id)
+            firebase_success = firebase_service.delete_document("memories", memory_id)
             if firebase_success:
                 success = True
                 self.logger.info(f"Memory deleted from Firebase with ID: {memory_id}")
@@ -396,7 +418,7 @@ class MemoryService:
                 self.logger.warning("Failed to delete memory from Firebase, falling back to Supabase")
         
         # Also try to delete from Supabase (to ensure data consistency)
-        response = self.supabase.table("agent_memories").delete().eq("id", memory_id).execute()
+        response = self.supabase.table("memories").delete().eq("id", memory_id).execute()
         if response.data is not None and len(response.data) > 0:
             success = True
         
@@ -431,7 +453,7 @@ class MemoryService:
             # Delete each memory individually from Firebase
             firebase_success = True
             for memory_id in memory_ids:
-                if not firebase_service.delete_document("agent_memories", memory_id):
+                if not firebase_service.delete_document("memories", memory_id):
                     firebase_success = False
             
             if firebase_success:
@@ -441,7 +463,7 @@ class MemoryService:
                 self.logger.warning("Failed to delete all agent memories from Firebase, falling back to Supabase")
         
         # Also delete from Supabase (to ensure data consistency)
-        response = self.supabase.table("agent_memories").delete().eq("user_id", user_id).eq("agent_id", agent_id).execute()
+        response = self.supabase.table("memories").delete().eq("user_id", user_id).eq("agent_id", agent_id).execute()
         if response.data is not None:
             success = True
         
@@ -523,7 +545,7 @@ class MemoryService:
             
             # Query Firebase
             all_memories = firebase_service.query_documents(
-                collection="agent_memories",
+                collection="memories",
                 filters=filters,
                 order_by=("created_at", "DESCENDING")
             )
@@ -552,7 +574,7 @@ class MemoryService:
         # Fall back to Supabase LIKE query
         search_query = f"%{query}%"
         
-        query_builder = self.supabase.table("agent_memories").select("*").eq("user_id", user_id).like("content", search_query)
+        query_builder = self.supabase.table("memories").select("*").eq("user_id", user_id).like("content", search_query)
         
         if agent_id:
             query_builder = query_builder.eq("agent_id", agent_id)
