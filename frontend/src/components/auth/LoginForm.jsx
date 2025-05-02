@@ -1,23 +1,32 @@
 /**
  * Login form component
- * Handles user authentication with email/password and Google
+ * Handles user authentication with username/password
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useAuth } from '../../contexts/AuthContext';
+import apiService from '../../services/apiService';
+import { v4 as uuidv4 } from 'uuid';
 
 const LoginForm = () => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const { login, loginWithGoogle } = useAuth();
+  const { setUser } = useAuth();
+
+  // Generate a device ID if one doesn't exist
+  useEffect(() => {
+    if (!localStorage.getItem('device_id')) {
+      localStorage.setItem('device_id', uuidv4());
+    }
+  }, []);
 
   /**
-   * Handle form submission for email/password login
+   * Handle form submission for username/password login
    * @param {Event} e - Form submit event
    */
   const handleSubmit = async (e) => {
@@ -26,42 +35,18 @@ const LoginForm = () => {
     setLoading(true);
 
     try {
-      const { user, error } = await login(email, password);
+      const deviceId = localStorage.getItem('device_id') || uuidv4();
+      const response = await apiService.auth.login(username, password, deviceId);
       
-      if (error) {
-        setError(error);
-        setLoading(false);
-        return;
-      }
-      
-      // Redirect to dashboard on successful login
-      router.push('/dashboard');
-    } catch (err) {
-      setError('Failed to sign in. Please check your credentials.');
-      setLoading(false);
-    }
-  };
-
-  /**
-   * Handle Google sign in
-   */
-  const handleGoogleSignIn = async () => {
-    setError('');
-    setLoading(true);
-
-    try {
-      const { user, error } = await loginWithGoogle();
-      
-      if (error) {
-        setError(error);
-        setLoading(false);
-        return;
-      }
+      // Get user info after successful login
+      const userInfo = await apiService.users.getCurrentUser();
+      setUser(userInfo);
       
       // Redirect to dashboard on successful login
       router.push('/dashboard');
     } catch (err) {
-      setError('Failed to sign in with Google.');
+      console.error('Login error:', err);
+      setError(err.response?.data?.detail || 'Failed to sign in. Please check your credentials.');
       setLoading(false);
     }
   };
@@ -83,19 +68,19 @@ const LoginForm = () => {
 
       <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-            Email address
+          <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+            Username
           </label>
           <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
+            id="username"
+            name="username"
+            type="text"
+            autoComplete="username"
             required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            placeholder="Enter your email"
+            placeholder="Enter your username"
           />
         </div>
 
@@ -146,45 +131,6 @@ const LoginForm = () => {
           </button>
         </div>
       </form>
-
-      <div className="mt-6">
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 text-gray-500 bg-white">Or continue with</span>
-          </div>
-        </div>
-
-        <div className="mt-6">
-          <button
-            onClick={handleGoogleSignIn}
-            disabled={loading}
-            className="flex justify-center w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-          >
-            <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-              <path
-                fill="#EA4335"
-                d="M12.0001 4.67676C13.0358 4.67676 14.0637 5.02824 14.8577 5.6904L17.8605 2.75752C16.1205 1.14752 14.0106 0.226562 12.0001 0.226562C8.5368 0.226562 5.50461 2.09468 3.95789 4.90282L7.32631 7.53229C8.10461 5.85282 9.90461 4.67676 12.0001 4.67676Z"
-              />
-              <path
-                fill="#4285F4"
-                d="M23.49 12.2744C23.49 11.4599 23.4172 10.6454 23.2716 9.85938H12V14.2594H18.4716C18.1533 15.7344 17.2716 17.0139 16.0001 17.8285V20.7139H19.8533C22.0899 18.6744 23.49 15.7344 23.49 12.2744Z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M12.0001 24.0001C15.2358 24.0001 17.9532 22.9376 19.8532 20.7139L16.0001 17.8285C14.9532 18.5376 13.6173 18.9829 12.0001 18.9829C9.90461 18.9829 8.10461 17.8068 7.32631 16.1274L3.47266 18.7568C5.01938 21.9829 8.28045 24.0001 12.0001 24.0001Z"
-              />
-              <path
-                fill="#34A853"
-                d="M3.95789 4.90282C3.78333 5.42094 3.68789 5.97468 3.68789 6.54376C3.68789 7.11282 3.78333 7.66657 3.95789 8.18468L3.95789 8.18468L7.32631 5.55521C7.03158 4.89376 6.86789 4.17094 6.86789 3.42094C6.86789 2.67094 7.03158 1.94813 7.32631 1.28668L3.95789 4.90282Z"
-              />
-            </svg>
-            Sign in with Google
-          </button>
-        </div>
-      </div>
 
       <div className="text-center mt-4">
         <p className="text-sm text-gray-600">
