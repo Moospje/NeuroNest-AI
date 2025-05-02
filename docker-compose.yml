@@ -18,10 +18,10 @@ services:
     networks:
       - neuronest-network
 
-  # Backend service
+  # Backend service (Express)
   backend:
     build:
-      context: ./backend
+      context: ./backend-express
       dockerfile: Dockerfile
     ports:
       - "5000:5000"
@@ -34,12 +34,36 @@ services:
       - DOCKER_NETWORK=neuronest-network
       - PROJECTS_DIR=/app/projects
     volumes:
-      - ./backend:/app
+      - ./backend-express:/app
       - /app/node_modules
       - ./projects:/app/projects
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - mongo
+    networks:
+      - neuronest-network
+
+  # FastAPI Backend service
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_SERVER=db
+      - POSTGRES_USER=nnuser
+      - POSTGRES_PASSWORD=nnpass
+      - POSTGRES_DB=nndb
+      - POSTGRES_PORT=5432
+    depends_on:
+      - db
+    volumes:
+      - ./api:/app/api
+      - ./core:/app/core
+      - ./agents:/app/agents
+      - ./database:/app/database
+      - ./config:/app/config
     networks:
       - neuronest-network
 
@@ -53,9 +77,32 @@ services:
     networks:
       - neuronest-network
 
+  # PostgreSQL service
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=nnuser
+      - POSTGRES_PASSWORD=nnpass
+      - POSTGRES_DB=nndb
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - neuronest-network
+
+  # Redis service (for future use)
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - neuronest-network
+
 networks:
   neuronest-network:
     driver: bridge
 
 volumes:
   mongo-data:
+  db_data:
